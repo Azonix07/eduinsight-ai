@@ -10,10 +10,10 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Forward /api/* to the backend (only when API URL is configured)
+  // Forward /api/* to the backend (only when API URL is valid)
   async rewrites() {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (!apiUrl) return [];
+    if (!apiUrl || !apiUrl.startsWith("http")) return [];
 
     const backendUrl = apiUrl.replace(/\/api\/?$/, "");
     return [
