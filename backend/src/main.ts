@@ -9,47 +9,57 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  const configService = app.get(ConfigService);
   const logger = new Logger('Bootstrap');
 
-  // Global prefix
-  app.setGlobalPrefix('api');
+  try {
+    const app = await NestFactory.create(AppModule, {
+      logger: ['error', 'warn', 'log'],
+    });
+    const configService = app.get(ConfigService);
 
-  // Security
-  app.use(helmet());
+    // Global prefix
+    app.setGlobalPrefix('api');
 
-  // Compression
-  app.use(compression());
+    // Security
+    app.use(helmet());
 
-  // CORS
-  app.enableCors({
-    origin: configService.get<string>('frontendUrl'),
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  });
+    // Compression
+    app.use(compression());
 
-  // Global pipes
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: { enableImplicitConversion: true },
-    }),
-  );
+    // CORS — allow frontend origin + permissive for health checks
+    const frontendUrl = configService.get<string>('frontendUrl');
+    app.enableCors({
+      origin: frontendUrl ? [frontendUrl] : true,
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    });
 
-  // Global filters & interceptors
-  app.useGlobalFilters(new HttpExceptionFilter());
-  app.useGlobalInterceptors(
-    new LoggingInterceptor(),
-    new TransformInterceptor(),
-  );
+    // Global pipes
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        transformOptions: { enableImplicitConversion: true },
+      }),
+    );
 
-  const port = configService.get<number>('port') || 4000;
-  await app.listen(port);
-  logger.log(`🚀 EduInsight API running on http://localhost:${port}/api`);
+    // Global filters & interceptors
+    app.useGlobalFilters(new HttpExceptionFilter());
+    app.useGlobalInterceptors(
+      new LoggingInterceptor(),
+      new TransformInterceptor(),
+    );
+
+    // Railway assigns PORT dynamically — must use it and bind to 0.0.0.0
+    const port = process.env.PORT || configService.get<number>('port') || 4000;
+    await app.listen(port, '0.0.0.0');
+    logger.log(`🚀 EduInsight API running on port ${port}`);
+  } catch (error) {
+    logger.error('❌ Failed to start application', error);
+    process.exit(1);
+  }
 }
 
 bootstrap();
