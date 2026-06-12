@@ -1,9 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Required for proper Vercel deployment
-  output: "standalone",
-
   // Allow images from any HTTPS source (Cloudinary, S3, etc.)
   images: {
     remotePatterns: [
@@ -13,11 +10,12 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Forward /api/* to the backend at build time (for SSR)
+  // Forward /api/* to the backend (only when API URL is configured)
   async rewrites() {
-    const backendUrl =
-      process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ||
-      "http://localhost:4000";
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!apiUrl) return [];
+
+    const backendUrl = apiUrl.replace(/\/api\/?$/, "");
     return [
       {
         source: "/api/:path*",
@@ -28,3 +26,4 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
